@@ -167,8 +167,8 @@ def clean_translation_text(text: str) -> str:
     if not text:
         return ""
     text = strip_html(text)
+    # Remove square-bracket footnotes but preserve parenthetical text
     text = re.sub(r"\[.*?\]", "", text)
-    text = re.sub(r"\(.*?\)", "", text)
     text = re.sub(r"[¹²³⁴⁵⁶⁷⁸⁹⁰]+", "", text)
     text = re.sub(r"\s*\d+\s*$", "", text)
     text = re.sub(r"\s+", " ", text).strip()
@@ -391,11 +391,16 @@ def write_csv(csv_dir: str, surah: int, arabic_texts, translated_texts):
 
     return out_path
 
-def write_srt(output_dir: str, file_name: str, timings, texts):
+def write_srt(output_dir: str, file_name: str, timings, texts, bom: bool = False):
+    """Write an SRT file. If `bom` is True the file will be written with a UTF-8 BOM (`utf-8-sig`).
+
+    By default (bom=False) files are written as UTF-8 without BOM.
+    """
     ensure_dir(output_dir)
     out_path = os.path.join(output_dir, file_name)
 
-    with open(out_path, "w", encoding="utf-8") as f:
+    encoding = "utf-8-sig" if bom else "utf-8"
+    with open(out_path, "w", encoding=encoding) as f:
         for i, t in enumerate(timings):
             start = ms_to_srt(t["from"])
             end = ms_to_srt(t["to"])
@@ -463,8 +468,9 @@ def process_surah(surah: int, reciter_id: int, translator_query: str,
     tr_texts = tr_texts[:min_len]
 
     csv_path = write_csv(csv_dir, surah, arabic_texts, tr_texts)
-    ar_srt_path = write_srt(arabic_srt_dir, f"{surah}_arabic.srt", timings, arabic_texts)
-    tr_srt_path = write_srt(tr_srt_dir, f"{surah}_translation.srt", timings, tr_texts)
+    ar_srt_path = write_srt(arabic_srt_dir, f"{surah}_arabic.srt", timings, arabic_texts, bom=False)
+    # Ensure translation SRT is saved explicitly without BOM
+    tr_srt_path = write_srt(tr_srt_dir, f"{surah}_translation.srt", timings, tr_texts, bom=False)
 
     # Ensure audio directory exists for any audio downloads
     ensure_dir(audio_dir)
