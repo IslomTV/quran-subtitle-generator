@@ -10,16 +10,17 @@ import copy
 import argparse
 
 # === CONFIG ===
-TEMPLATE_DIR = r"C:\Users\davro\AppData\Local\CapCut\User Data\Projects\com.lveditor.draft"
-NAMES_FILE = r"quran_sura_names_uzbek.txt"
+# If TEMPLATE_DIR is None the script attempts to auto-detect the CapCut projects
+# location using the %LOCALAPPDATA% environment variable. You can override the
+# detected path by passing --template-dir (or -t) on the command line.
+TEMPLATE_DIR = None  # e.g. r"C:\Users\<you>\AppData\Local\CapCut\User Data\Projects\com.lveditor.draft"
+NAMES_FILE = r"data/quran_sura_names_uzbek.txt"
 
-# SRT source directories (Arabic and translation)
-ARAB_SRT_DIR = r"C:\Quron\Mishari_Rashid_al_Afasy\Muhammad_Sodiq_Muhammad_Yusuf_Latin\srt\arabic"
-TRANSL_SRT_DIR = r"C:\Quron\Mishari_Rashid_al_Afasy\Muhammad_Sodiq_Muhammad_Yusuf_Latin\srt\translation"
+# SRT handling removed — this script only duplicates template folders
 
 # Name of ONE existing template folder to duplicate. If this folder does not exist
 # the script will try to auto-detect a suitable folder inside `TEMPLATE_DIR`.
-BASE_TEMPLATE_FOLDER = "BASE_TEMPLATE"  # change this to your real folder name
+BASE_TEMPLATE_FOLDER = "data/BASE_TEMPLATE"  # change this to your real folder name
 # If True, keep leading numbering from the names file (e.g. "1. Fatiha").
 # If False, numbers will be removed (default legacy behaviour).
 PRESERVE_NUMBERS = True
@@ -34,15 +35,58 @@ def clean_name(name):
     return re.sub(r'[<>:"/\\|?*]', '', name).strip()
 
 def main():
-    # Normalize the template directory path
-    template_dir = os.path.normpath(os.path.expanduser(TEMPLATE_DIR))
+    parser = argparse.ArgumentParser(description="Create CapCut templates from a base project folder.")
+    parser.add_argument('-t', '--template-dir', help='Path to CapCut projects directory (overrides auto-detection)')
+    args = parser.parse_args()
+
+    def resolve_template_dir(provided):
+        # If user explicitly provided a path, validate and use it
+        if provided:
+            path = os.path.normpath(os.path.expanduser(provided))
+            if os.path.isdir(path):
+                return path
+            raise FileNotFoundError(f"Provided template directory not found: {path}")
+
+        # Try to auto-detect CapCut projects under %LOCALAPPDATA% (Windows)
+        localappdata = os.getenv('LOCALAPPDATA')
+        if localappdata:
+            candidate = os.path.join(localappdata, 'CapCut', 'User Data', 'Projects', 'com.lveditor.draft')
+            if os.path.isdir(candidate):
+                return os.path.normpath(candidate)
+            parent = os.path.join(localappdata, 'CapCut', 'User Data', 'Projects')
+            if os.path.isdir(parent):
+                entries = [d for d in os.listdir(parent) if os.path.isdir(os.path.join(parent, d)) and not d.startswith('.')]
+                if entries:
+                    return os.path.normpath(os.path.join(parent, entries[0]))
+
+        # Fallback to legacy hardcoded path if present (keeps compatibility)
+        legacy = r"C:\Users\davro\AppData\Local\CapCut\User Data\Projects\com.lveditor.draft"
+        if os.path.isdir(legacy):
+            return os.path.normpath(legacy)
+
+        raise FileNotFoundError("Could not locate CapCut template directory. Pass --template-dir or ensure the folder exists under %LOCALAPPDATA%\\CapCut\\User Data\\Projects")
+
+    template_dir = resolve_template_dir(args.template_dir)
+    print(f"Using template directory: {template_dir}")
 
     def find_base_template(template_dir, base_folder):
-        # If user provided a base folder name, prefer that when it exists
+        # If user provided a base folder name or path, prefer that when it exists.
         if base_folder:
-            candidate = os.path.join(template_dir, base_folder)
-            if os.path.isdir(candidate):
-                return candidate
+            # Absolute path provided -> use directly if it exists
+            if os.path.isabs(base_folder):
+                if os.path.isdir(base_folder):
+                    return os.path.normpath(base_folder)
+            else:
+                # First, check relative to the script/project directory (e.g. "data/BASE_TEMPLATE")
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                candidate = os.path.normpath(os.path.join(script_dir, base_folder))
+                if os.path.isdir(candidate):
+                    return candidate
+
+                # Next, check inside the detected template_dir for backward compatibility
+                candidate = os.path.join(template_dir, base_folder)
+                if os.path.isdir(candidate):
+                    return os.path.normpath(candidate)
 
         # Otherwise try to auto-detect a single/first directory inside template_dir
         if not os.path.isdir(template_dir):
@@ -107,8 +151,14 @@ def main():
     with open(NAMES_FILE, "r", encoding="utf-8") as f:
         names = [clean_name(line) for line in f if line.strip()]
 
+    # Sanity check: ensure we resolved a concrete path
+    if not isinstance(template_dir, (str, bytes, os.PathLike)):
+        raise TypeError("Resolved template directory is not a valid path")
+    if not os.path.isdir(template_dir):
+        raise FileNotFoundError(f"Resolved template directory does not exist: {template_dir}")
+
     for name in names:
-        new_project_path = os.path.join(TEMPLATE_DIR, name)
+        new_project_path = os.path.join(template_dir, name)
 
         if os.path.exists(new_project_path):
             print(f"Skipping (already exists): {name}")
@@ -117,13 +167,12 @@ def main():
         shutil.copytree(base_template_path, new_project_path)
         print(f"Created template: {name}")
 
-        # (SRT text insertion and audio filename replacement removed)
-        # We only copy the base template folder; no modifications to draft_content.json are performed.
+        # We only copy the base template folder; no other modifications are performed.
 
     print("\n✅ Done! CapCut projects created successfully.")
 
 
-# SRT and audio modification helpers removed. This script now only duplicates the base template folders.
+# Audio modification helpers removed. This script now only duplicates the base template folders.
 
 
 

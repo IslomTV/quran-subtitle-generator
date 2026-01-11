@@ -4,7 +4,7 @@ import os
 import re
 
 PLAYLIST_URL = "https://www.youtube.com/playlist?list=PLd4gIYSJqNQd8dPPnGst4hSj8_umevXNu"
-OUTPUT_DIR = "descriptions_latin"
+OUTPUT_DIR = "data/descriptions_latin"
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
