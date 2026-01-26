@@ -1,5 +1,9 @@
-# python quran_downloader.py --reciter_name "Khalid al-Qahtani"
-# python quran_downloader.py --reciters
+# This script is an automated Python tool that downloads all 114 Surahs of the Quran from QuranicAudio.
+# Install required packages:
+#       pip install requests tqdm mutagen
+# Usage examples:
+#       python quran_downloader.py --reciters
+#       python quran_downloader.py --reciter_name "Maher al-Muaiqly"
 # Abdullah Matroud, 
 
 import os
