@@ -1,10 +1,9 @@
 # python update_metadata.py --folder Yasser_Al-Dosari
-
 import os
 import argparse
 from mutagen.mp3 import MP3
 from mutagen.id3 import (
-    ID3, TIT2, TALB, TPE1, TRCK, APIC, ID3NoHeaderError
+    ID3, TIT2, TALB, TPE1, TPE2, TRCK, APIC, ID3NoHeaderError
 )
 from tqdm import tqdm
 
@@ -28,6 +27,44 @@ SURAH_NAMES_UZ = [
     "Moʼun","Kavsar","Kofirun","Nasr","Masad","Ixlos","Falaq","Nos"
 ]
 
+SURAH_NAMES_EN = [
+    "Al-Fatihah","Al-Baqarah","Aal-E-Imran","An-Nisa","Al-Ma'idah","Al-An'am",
+    "Al-A'raf","Al-Anfal","At-Tawbah","Yunus","Hud","Yusuf","Ar-Ra'd","Ibrahim",
+    "Al-Hijr","An-Nahl","Al-Isra","Al-Kahf","Maryam","Ta-Ha","Al-Anbiya","Al-Hajj",
+    "Al-Mu'minun","An-Nur","Al-Furqan","Ash-Shu'ara","An-Naml","Al-Qasas",
+    "Al-Ankabut","Ar-Rum","Luqman","As-Sajdah","Al-Ahzab","Saba","Fatir","Ya-Sin",
+    "As-Saffat","Sad","Az-Zumar","Ghafir","Fussilat","Ash-Shura","Az-Zukhruf",
+    "Ad-Dukhan","Al-Jathiyah","Al-Ahqaf","Muhammad","Al-Fath","Al-Hujurat",
+    "Qaf","Adh-Dhariyat","At-Tur","An-Najm","Al-Qamar","Ar-Rahman","Al-Waqi'ah",
+    "Al-Hadid","Al-Mujadila","Al-Hashr","Al-Mumtahanah","As-Saff","Al-Jumu'ah",
+    "Al-Munafiqun","At-Taghabun","At-Talaq","At-Tahrim","Al-Mulk","Al-Qalam",
+    "Al-Haqqah","Al-Ma'arij","Nuh","Al-Jinn","Al-Muzzammil","Al-Muddaththir",
+    "Al-Qiyamah","Al-Insan","Al-Mursalat","An-Naba","An-Nazi'at","Abasa",
+    "At-Takwir","Al-Infitar","Al-Mutaffifin","Al-Inshiqaq","Al-Buruj","At-Tariq",
+    "Al-A'la","Al-Ghashiyah","Al-Fajr","Al-Balad","Ash-Shams","Al-Layl",
+    "Ad-Duha","Ash-Sharh","At-Tin","Al-Alaq","Al-Qadr","Al-Bayyinah",
+    "Az-Zalzalah","Al-Adiyat","Al-Qari'ah","At-Takathur","Al-Asr","Al-Humazah",
+    "Al-Fil","Quraysh","Al-Ma'un","Al-Kawthar","Al-Kafirun","An-Nasr",
+    "Al-Masad","Al-Ikhlas","Al-Falaq","An-Nas"
+]
+
+SURAH_NAMES_AR = [
+    "الفاتحة","البقرة","آل عمران","النساء","المائدة","الأنعام","الأعراف",
+    "الأنفال","التوبة","يونس","هود","يوسف","الرعد","إبراهيم","الحجر","النحل",
+    "الإسراء","الكهف","مريم","طه","الأنبياء","الحج","المؤمنون","النور","الفرقان",
+    "الشعراء","النمل","القصص","العنكبوت","الروم","لقمان","السجدة","الأحزاب",
+    "سبإ","فاطر","يس","الصافات","ص","الزمر","غافر","فصلت","الشورى","الزخرف",
+    "الدخان","الجاثية","الأحقاف","محمد","الفتح","الحجرات","ق","الذاريات",
+    "الطور","النجم","القمر","الرحمن","الواقعة","الحديد","المجادلة","الحشر",
+    "الممتحنة","الصف","الجمعة","المنافقون","التغابن","الطلاق","التحريم","الملك",
+    "القلم","الحاقة","المعارج","نوح","الجن","المزمل","المدثر","القيامة","الإنسان",
+    "المرسلات","النبأ","النازعات","عبس","التكوير","الإنفطار","المطففين",
+    "الإنشقاق","البروج","الطارق","الأعلى","الغاشية","الفجر","البلد","الشمس",
+    "الليل","الضحى","الشرح","التين","العلق","القدر","البينة","الزلزلة",
+    "العاديات","القارعة","التكاثر","العصر","الهمزة","الفيل","قريش","الماعون",
+    "الكوثر","الكافرون","النصر","المسد","الإخلاص","الفلق","الناس"
+]
+
 # -------------------- METADATA UPDATE --------------------
 def update_metadata(folder):
     if not os.path.exists(COVER_IMAGE):
@@ -36,12 +73,15 @@ def update_metadata(folder):
     if not os.path.isdir(folder):
         raise NotADirectoryError("Provided folder does not exist.")
 
-    # Reciter name from folder
     reciter_name = os.path.basename(folder).replace("_", " ").strip()
 
     mp3_files = sorted(
-        f for f in os.listdir(folder) if f.lower().endswith(".mp3")
+        (f for f in os.listdir(folder) if f.lower().endswith(".mp3")),
+        key=lambda x: int(os.path.splitext(x)[0])
     )
+
+    if len(mp3_files) != TOTAL_SURAHS:
+        raise ValueError(f"Expected {TOTAL_SURAHS} MP3 files, found {len(mp3_files)}.")
 
     print(f"\nUpdating metadata")
     print(f"Folder : {folder}")
@@ -56,14 +96,21 @@ def update_metadata(folder):
             audio = MP3(file_path)
             audio.add_tags()
 
-        # Remove old cover images (important for Telegram)
-        audio.tags.delall("APIC")
+        # Clear old tags
+        for tag in ["TIT2", "TPE1", "TPE2", "TALB", "TRCK", "APIC"]:
+            audio.tags.delall(tag)
 
-        title = f"{index:03}. {SURAH_NAMES_UZ[index - 1]} surasi – Quroni Karim"
+        title = (
+            f"{index:03}. {SURAH_NAMES_EN[index-1]} | "
+            f"{SURAH_NAMES_UZ[index-1]} surasi | "
+            f"{SURAH_NAMES_AR[index-1]}"
+        )
+
 
         audio.tags.add(TIT2(encoding=3, text=title))
         audio.tags.add(TPE1(encoding=3, text=reciter_name))
-        audio.tags.add(TALB(encoding=3, text="Quroni Karim"))
+        audio.tags.add(TPE2(encoding=3, text=reciter_name))
+        audio.tags.add(TALB(encoding=3, text="The Holy Qur'an | Quroni Karim | القرآن الكريم"))
         audio.tags.add(TRCK(encoding=3, text=f"{index}/{TOTAL_SURAHS}"))
 
         with open(COVER_IMAGE, "rb") as img:
@@ -71,21 +118,20 @@ def update_metadata(folder):
                 APIC(
                     encoding=3,
                     mime="image/png",
-                    type=3,      # Front cover (Telegram requirement)
+                    type=3,
                     desc="Cover",
                     data=img.read()
                 )
             )
 
-        # Force ID3v2.3 for max compatibility
         audio.save(v2_version=3)
 
-    print("\n✅ Metadata update completed (Telegram optimized).")
+    print("\n✅ Metadata update completed (UZ + EN + AR, Telegram optimized).")
 
 # -------------------- MAIN --------------------
 def main():
     parser = argparse.ArgumentParser(
-        description="Update MP3 metadata + embed PNG cover (reciter from folder name)"
+        description="Update MP3 Quran metadata (Uzbek + English + Arabic)"
     )
     parser.add_argument("--folder", required=True, help="Folder with MP3 files")
 
