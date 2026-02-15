@@ -6,7 +6,7 @@
 #       python -m pip install requests mutagen
 #
 # How to run:
-#   python quran_srt_generator.py --surah 1 --reciter 7 --download-audio
+#   python quran_srt_generator.py --surah 67 --reciter 8 --download-audio
 #   python quran_srt_generator.py --surah 1 --reciter 7 --download-audio --translation "T. Usmani"
 #   python quran_srt_generator.py --h
 #   python quran_srt_generator.py --list-reciters
@@ -249,10 +249,23 @@ def find_translation_id(translator_query: str, session=None):
 # FETCH TEXTS
 # ======================================================
 
-def fetch_arabic_uthmani(surah: int, session=None):
+def fetch_arabic_uthmani(surah: int, add_numbers=True, session=None):
     ar_url = f"https://api.alquran.cloud/v1/surah/{surah}/quran-uthmani"
     ar_data = request_json(ar_url, session=session)
-    return [a["text"] for a in ar_data["data"]["ayahs"]]
+
+    result = []
+    for i, a in enumerate(ar_data["data"]["ayahs"], start=1):
+        text = a["text"]
+        if add_numbers:
+            # Arabic-style ayah number (١،٢،٣…)
+            arabic_num = "".join(
+                chr(0x0660 + int(d)) for d in str(i)
+            )
+            text = f"{text} ﴿{arabic_num}﴾"
+        result.append(text)
+
+    return result
+
 
 def fetch_translation_qurancom(surah: int, translation_id: int, clean=True, add_numbers=True, session=None):
     params = {"translations": translation_id, "per_page": 300}
@@ -437,7 +450,11 @@ def process_surah(surah: int, reciter_id: int, translator_query: str,
     print(f"🌍 Translation: {translation_name} (id={translation_id}) [{translation_lang}]")
     print(f"📂 Output folder: {base_dir}")
 
-    arabic_texts = fetch_arabic_uthmani(surah, session=session)
+    arabic_texts = fetch_arabic_uthmani(
+    surah,
+    add_numbers=add_numbers,
+    session=session
+    )
     tr_texts = fetch_translation_qurancom(
         surah,
         translation_id,
