@@ -3,10 +3,10 @@
 # Install required packages:
 #       pip install requests tqdm mutagen
 # Usage examples:
-#       python quran_manager.py --reciters
+#       python quran_downloader.py --reciters
 # Download AND update metadata automatically (default behavior)
-#       python quran_manager.py --reciter_name "Maher al-Muaiqly"
-#       python quran_manager.py --update_metadata --folder "Maher_al-Muaiqly"
+#       python quran_downloader.py --reciter_name "Mishari Rashid al-`Afasy"
+#       python quran_downloader.py --update_metadata --folder "Maher_al-Muaiqly"
 
 
 import os
@@ -14,6 +14,8 @@ import argparse
 import requests
 from urllib.parse import quote
 from tqdm import tqdm
+import unicodedata
+import difflib
 from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, TIT2, TALB, TPE1, TPE2, TRCK, APIC, ID3NoHeaderError
 
@@ -108,15 +110,59 @@ def get_reciter_by_name(reciter_name):
     response = requests.get(f"{QA_API}/qaris", timeout=15)
     response.raise_for_status()
 
+    def _normalize(s):
+        if not s:
+            return ""
+        s = s.strip().lower()
+        # Normalize common quote/apostrophe variants to a simple apostrophe
+        for ch in ("`", "´", "’", "‘", "ʻ", "ʼ", "ʿ"):
+            s = s.replace(ch, "'")
+        # Remove diacritics
+        s = unicodedata.normalize("NFKD", s)
+        s = "".join(ch for ch in s if not unicodedata.combining(ch))
+        # Remove remaining punctuation except spaces and alphanumerics
+        s = "".join(ch for ch in s if ch.isalnum() or ch.isspace())
+        s = " ".join(s.split())
+        return s
+
+    items = []
+    norm_map = {}
     for r in response.json():
-        if r["name"].strip().lower() == reciter_name.strip().lower():
-            if not r.get("relative_path"):
-                raise ValueError(f"Reciter '{r['name']}' has no downloadable audio.")
-            return r["name"], r["relative_path"]
+        name = r.get("name", "")
+        rel = r.get("relative_path")
+        n = _normalize(name)
+        items.append((name, rel, n))
+        norm_map[n] = (name, rel)
+
+    target = _normalize(reciter_name)
+
+    # Exact normalized match
+    if target in norm_map:
+        name, rel = norm_map[target]
+        if not rel:
+            raise ValueError(f"Reciter '{name}' has no downloadable audio.")
+        return name, rel
+
+    # Fuzzy match: try to suggest/auto-select closest reciter
+    normalized_keys = [n for (_, _, n) in items]
+    close = difflib.get_close_matches(target, normalized_keys, n=1, cutoff=0.6)
+    if close:
+        matched_norm = close[0]
+        matched_name, matched_rel = norm_map[matched_norm]
+        if not matched_rel:
+            raise ValueError(f"Reciter '{matched_name}' has no downloadable audio.")
+        print(f"Using closest match for reciter: '{matched_name}' (requested: '{reciter_name}')")
+        return matched_name, matched_rel
+
+    # If nothing found, prepare helpful error with suggestions
+    suggestions = difflib.get_close_matches(target, normalized_keys, n=5, cutoff=0.4)
+    suggestion_names = [norm_map[s][0] for s in suggestions]
+    suggestion_text = "\n".join(f"- {n}" for n in suggestion_names) if suggestion_names else ""
 
     raise ValueError(
         f"Reciter '{reciter_name}' not found.\n"
-        f"Run: python quran_manager.py --reciters"
+        f"Run: python quran_downloader.py --reciters\n"
+        + (f"\nDid you mean:\n{suggestion_text}\n" if suggestion_text else "")
     )
 
 # -------------------- MP3 TAGGING (SIMPLE) --------------------
@@ -206,10 +252,10 @@ def download_quran(reciter_name, relative_path, auto_update_metadata=True):
         except Exception as e:
             print(f"\n⚠️  Metadata update failed: {e}")
             print(f"💡 You can manually update metadata later with:")
-            print(f"   python quran_manager.py --update_metadata --folder \"{folder}\"")
+            print(f"   python quran_downloader.py --update_metadata --folder \"{folder}\"")
     else:
         print(f"💡 To update metadata with multilingual support, run:")
-        print(f"   python quran_manager.py --update_metadata --folder \"{folder}\"")
+        print(f"   python quran_downloader.py --update_metadata --folder \"{folder}\"")
 
 # -------------------- METADATA UPDATE --------------------
 def update_metadata(folder, remove_comments=True, remove_personal_tags=True):
