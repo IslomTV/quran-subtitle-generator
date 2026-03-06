@@ -6,8 +6,8 @@
 #       python -m pip install requests mutagen
 #
 # How to run:
-#   python quran_srt_generator.py --surah 67 --reciter 8 --download-audio
-#   python quran_srt_generator.py --surah 1 --reciter 7 --download-audio --translation "T. Usmani"
+#   python quran_srt_generator.py --all --reciter 8 --download-audio
+#   python quran_srt_generator.py --surah 2 --reciter 8 --download-audio --translation "Muhammad Sodiq Muhammad Yusuf (Latin)"
 #   python quran_srt_generator.py --h
 #   python quran_srt_generator.py --list-reciters
 #   python quran_srt_generator.py --list-translations

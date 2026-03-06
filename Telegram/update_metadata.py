@@ -1,4 +1,4 @@
-# python update_metadata.py --folder idrees-abkar
+# python update_metadata.py --folder C:\Quran\quran-subtitle-generator\output\Abu_Bakr_al_Shatri
 
 import os
 import argparse
