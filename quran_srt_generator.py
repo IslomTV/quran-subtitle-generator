@@ -34,6 +34,7 @@ import os
 import re
 import time
 import json
+import shutil
 import requests
 import tempfile
 from io import BytesIO
@@ -60,8 +61,13 @@ QURANCOM_CHAPTER_AUDIO_API = f"{QURANCOM_API_BASE}/chapter_recitations"
 # ✅ Fallback endpoint (verse MP3s)
 QURANCOM_VERSE_AUDIO_API = f"{QURANCOM_API_BASE}/recitations"
 
-OUTPUT_ROOT = "output"
+QURAN_ROOT = r"C:\Quran" if os.path.exists(r"C:\Quran") else r"C:\Quron"
+OUTPUT_ROOT = QURAN_ROOT
 DEFAULT_TRANSLATOR_QUERY = "Muhammad Sodiq Muhammad Yusuf (Latin)"
+PROJECT_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+QURAN_DATA_DIR = os.path.join(QURAN_ROOT, "data")
+BACKGROUND_SOURCE_PATH = os.path.join(PROJECT_DATA_DIR, "background.png")
+BACKGROUND_TARGET_PATH = os.path.join(QURAN_DATA_DIR, "background.png")
 
 # Simple in-memory caches to avoid repeated lookups when processing many surahs
 _reciter_name_cache = {}
@@ -77,6 +83,21 @@ DURATION_CACHE_FILE = os.path.join(CACHE_DIR, "audio_durations.json")
 
 def ensure_dir(path: str):
     os.makedirs(path, exist_ok=True)
+
+def copy_background_to_quran_data():
+    """Copy the project background image into the root Quran data folder."""
+    if not os.path.exists(BACKGROUND_SOURCE_PATH):
+        return None
+
+    ensure_dir(QURAN_DATA_DIR)
+    if not os.path.exists(BACKGROUND_TARGET_PATH):
+        shutil.copy2(BACKGROUND_SOURCE_PATH, BACKGROUND_TARGET_PATH)
+        return BACKGROUND_TARGET_PATH
+
+    if os.path.getmtime(BACKGROUND_SOURCE_PATH) > os.path.getmtime(BACKGROUND_TARGET_PATH):
+        shutil.copy2(BACKGROUND_SOURCE_PATH, BACKGROUND_TARGET_PATH)
+
+    return BACKGROUND_TARGET_PATH
 
 
 def create_session_with_retries(total_retries=3, backoff_factor=0.3, status_forcelist=(500, 502, 504)):
@@ -390,6 +411,8 @@ def build_output_paths(reciter_name: str, translation_name: str):
     # Place audio folder at the reciter level so it's shared across translations
     audio_dir = os.path.join(OUTPUT_ROOT, rec_folder, "audio")
 
+    ensure_dir(OUTPUT_ROOT)
+    ensure_dir(os.path.join(OUTPUT_ROOT, rec_folder))
     return base, csv_dir, arabic_srt_dir, tr_srt_dir, audio_dir
 
 def write_csv(csv_dir: str, surah: int, arabic_texts, translated_texts):
@@ -556,6 +579,7 @@ def main():
 
     args = parser.parse_args()
     session = create_session_with_retries()
+    copy_background_to_quran_data()
 
     if args.list_reciters:
         list_reciters(session=session)
