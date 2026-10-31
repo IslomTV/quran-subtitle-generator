@@ -245,6 +245,19 @@ def find_translation_id(translator_query: str, session=None):
     if not translations:
         raise RuntimeError("No translations returned from Quran.com.")
 
+    if key.isdigit():
+        translation_id = int(key)
+        for translation in translations:
+            if translation.get("id") == translation_id:
+                result = (
+                    translation["id"],
+                    translation["name"],
+                    translation.get("language_name", ""),
+                )
+                _translation_lookup_cache[key] = result
+                return result
+        raise RuntimeError(f"Translation ID not found: {translation_id}")
+
     q = key
 
     for t in translations:
@@ -569,7 +582,7 @@ def main():
     parser.add_argument("--surah", type=int, help="Surah number (1-114)")
     parser.add_argument("--reciter", type=int, default=7, help="Reciter ID (default: 7)")
     parser.add_argument("--translation", type=str, default=DEFAULT_TRANSLATOR_QUERY,
-                        help=f"Translator name query (default: {DEFAULT_TRANSLATOR_QUERY})")
+                        help=f"Translator name query or Quran.com translation ID (default: {DEFAULT_TRANSLATOR_QUERY})")
     parser.add_argument("--all", action="store_true", help="Process all surahs")
     parser.add_argument("--no-clean", action="store_true", help="Do NOT clean translation text")
     parser.add_argument("--no-numbers", action="store_true", help="Do NOT add numbering to translation lines")

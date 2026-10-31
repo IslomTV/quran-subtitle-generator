@@ -36,6 +36,9 @@ With a different translation:
 python quran_srt_generator.py --surah 1 --reciter 7 --download-audio --translation "T. Usmani"
 ```
 
+`--translation` also accepts a Quran.com translation ID, which disambiguates translations
+that share the same displayed translator name.
+
 List helpers:
 
 ```bash
@@ -52,11 +55,12 @@ python quran_srt_generator.py --all --reciter 7 --translation "T. Usmani"
 
 ## Output
 
-By default files are written to the `output/` folder, organized by reciter and translation:
+By default files are written under `C:\Quran` (or `C:\Quron` if `C:\Quran` does not exist),
+organized by reciter and translation:
 
-- `output/<reciter>/<translation>/srt/arabic/<surah>_arabic.srt`
-- `output/<reciter>/<translation>/srt/translation/<surah>_translation.srt`
-- `output/<reciter>/<translation>/csv/<surah>.csv`
+- `<root>/<reciter>/<translation>/srt/arabic/<surah>_arabic.srt`
+- `<root>/<reciter>/<translation>/srt/translation/<surah>_translation.srt`
+- `<root>/<reciter>/<translation>/csv/<surah>.csv`
 - Shared audio files (if downloaded): `output/<reciter>/audio/` (full surah and per-verse MP3s)
 
 ## Notes
